@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lucky Wheel</title>
+<style>
+  body {
+    margin: 0;
+    background-color: black;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #wheelCanvas {
+    margin-top: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  }
+  #inputContainer {
+    margin-top: 20px;
+    width: 90%;
+    max-width: 600px;
+    text-align: center;
+  }
+  #segmentsInput {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: none;
+    outline: none;
+  }
+  #spinButton {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 6px;
+    background-color: #ff4500;
+    color: white;
+    cursor: pointer;
+  }
+  #result {
+    margin-top: 20px;
+    font-size: 24px;
+    min-height: 30px;
+  }
+  #pointer {
+    position: absolute;
+    top: 100px;
+    left: 50%;
+    margin-left: -15px;
+    width: 30px;
+    height: 30px;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <h1>Lucky Wheel</h1>
+  <div id="inputContainer">
+    <input
+      type="text"
+      id="segmentsInput"
+      placeholder="Enter segments separated by commas (e.g. Prize1, Prize2, Prize3)"
+      value="Prize 1, Prize 2, Prize 3, Prize 4, Prize 5, Prize 6, Prize 7, Prize 8"
+    />
+    <br />
+    <button id="spinButton">Spin Wheel</button>
+  </div>
+  <canvas id="wheelCanvas" width="600" height="600"></canvas>
+  <div id="result"></div>
+  <svg id="pointer" viewBox="0 0 30 30">
+    <polygon points="15,0 0,30 30,30" fill="red" />
+  </svg>
+
+<script>
+  const canvas = document.getElementById("wheelCanvas");
+  const ctx = canvas.getContext("2d");
+  const spinButton = document.getElementById("spinButton");
+  const segmentsInput = document.getElementById("segmentsInput");
+  const resultDiv = document.getElementById("result");
+  const pointer = document.getElementById("pointer");
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const radius = 250;
+
+  let segments = [];
+  let colors = [
+    "#FF6347", // Tomato
+    "#87CEFA", // Light Sky Blue
+    "#FFD700", // Gold
+    "#90EE90", // Light Green
+    "#FFB6C1", // Light Pink
+    "#FFA500", // Orange
+    "#ADD8E6", // Light Blue
+    "#DDA0DD", // Plum
+  ];
+
+  let startAngle = 0;
+  let spinAngle = 0;
+  let spinTime = 0;
+  let spinTimeTotal = 0;
+  let spinning = false;
+
+  function drawSegment(index, startAngle, arc, text) {
+    ctx.fillStyle = colors[index % colors.length];
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, startAngle, startAngle + arc, false);
+    ctx.lineTo(centerX, centerY);
+    ctx.fill();
+
+    ctx.save();
+    ctx.fillStyle = "white";
+    ctx.translate(centerX, centerY);
+    ctx.rotate(startAngle + arc / 2);
+    ctx.textAlign = "right";
+    ctx.font = "18px Arial";
+    ctx.fillText(text, radius - 10, 10);
+    ctx.restore();
+  }
+
+  function drawWheel() {
+    const arc = (2 * Math.PI) / segments.length;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < segments.length; i++) {
+      drawSegment(i, startAngle + i * arc, arc, segments[i]);
+    }
+  }
+
+  function easeOut(t, b, c, d) {
+    t /= d;
+    t--;
+    return c * (t * t * t + 1) + b;
+  }
+
+  function spin() {
+    spinTime += 30;
+    if (spinTime >= spinTimeTotal) {
+      stopSpin();
+      return;
+    }
+    const spinAngleCurrent = easeOut(spinTime, 0, spinAngle, spinTimeTotal);
+    startAngle += (spinAngleCurrent * Math.PI) / 180;
+    drawWheel();
+    requestAnimationFrame(spin);
+  }
+
+  function stopSpin() {
+    spinning = false;
+    const arc = (2 * Math.PI) / segments.length;
+    const degrees = (startAngle * 180) / Math.PI;
+    const normalizedDegrees = (degrees % 360 + 360) % 360;
+    const index = Math.floor(segments.length - normalizedDegrees / (360 / segments.length)) % segments.length;
+    resultDiv.textContent = "Result: " + segments[index];
+  }
+
+  function startSpin() {
+    if (spinning) return;
+    resultDiv.textContent = "";
+    spinAngle = Math.floor(Math.random() * 360) + 720; // 2 to 3 full rotations
+    spinTime = 0;
+    spinTimeTotal = Math.floor(Math.random() * 3000) + 4000; // 4 to 7 seconds
+    spinning = true;
+    spin();
+  }
+
+  spinButton.addEventListener("click", () => {
+    const input = segmentsInput.value.trim();
+    if (!input) {
+      alert("Please enter at least two segments separated by commas.");
+      return;
+    }
+    segments = input.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (segments.length < 2) {
+      alert("Please enter at least two segments.");
+      return;
+    }
+    startAngle = 0;
+    drawWheel();
+    startSpin();
+  });
+
+  // Initialize with default segments
+  segments = segmentsInput.value.split(",").map((s) => s.trim());
+  drawWheel();
+</script>
+</body>
+</html>
